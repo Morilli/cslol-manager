@@ -294,7 +294,7 @@ void CSLOLToolsImpl::init() {
         lockfile_ = new QLockFile(prog_ + "/lockfile");
         auto result = lockfile_->tryLock();
         auto lockerror = QString::number((int)lockfile_->error());
-        doReportError(prog_.toStdString().c_str(), "Can not run multiple instances", lockerror);
+        doReportError("Acquire lock LOL", prog_.toStdString().c_str(), lockerror);
         if (!result) {
             setState(CSLOLState::StateCriticalError);
             return;
