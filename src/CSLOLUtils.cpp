@@ -256,7 +256,6 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
     char* args[] = { strdup("admin"), NULL };
     FILE* pipe = NULL;
 
-    QDir::setCurrent(QFileInfo(path).dir().path());
     OSStatus execStatus = AuthorizationExecuteWithPrivileges(authorizationRef, path, kAuthorizationFlagDefaults, args, &pipe);
     if (execStatus != errAuthorizationSuccess) {
         fprintf(stderr, "Failed to exec auth: %x\n", execStatus);

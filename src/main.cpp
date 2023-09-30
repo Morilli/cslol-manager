@@ -13,6 +13,7 @@
 
 int main(int argc, char *argv[]) {
     CSLOLUtils::relaunchAdmin(argc, argv);
+    QDir::setCurrent(QCoreApplication::applicationDirPath());
 
     qmlRegisterType<CSLOLTools>("customskinlol.tools", 1, 0, "CSLOLTools");
 
