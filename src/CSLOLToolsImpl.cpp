@@ -318,7 +318,7 @@ void CSLOLToolsImpl::init() {
         if (_NSGetExecutablePath(path, &path_max_size) != KERN_SUCCESS) {
             return;
         }
-        doReportError("Acquire lock LOL", "prog_" + prog_.toStdString().c_str(), "nsgetexecutablepath " + path);
+        doReportError("Acquire lock LOL", "prog_: ".append(prog_.toStdString().c_str()), "nsgetexecutablepath: ".append(path));
         if (!result) {
             setState(CSLOLState::StateCriticalError);
             return;
