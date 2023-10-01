@@ -13,7 +13,7 @@
 #include "CSLOLVersion.h"
 
 int main(int argc, char *argv[]) {
-    CSLOLUtils::relaunchAdmin(argc, argv);
+    // CSLOLUtils::relaunchAdmin(argc, argv);
 
     qmlRegisterType<CSLOLTools>("customskinlol.tools", 1, 0, "CSLOLTools");
 

@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.bindump": "python",
+        "*.h": "c",
+        "fstream": "cpp"
+    }
+}
