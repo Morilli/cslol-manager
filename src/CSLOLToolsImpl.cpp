@@ -24,6 +24,14 @@
 #include <QSysInfo>
 #include <QUrl>
 #include <QUrlQuery>
+#    include <libproc.h>
+#    include <stdlib.h>
+#    include <string.h>
+#    include <unistd.h>
+#    include <mach-o/dyld.h>
+#    include <Security/Authorization.h>
+#    include <Security/AuthorizationTags.h>
+#    include <sys/sysctl.h>
 
 #include "CSLOLVersion.h"
 #include "CSLOLUtils.h"
