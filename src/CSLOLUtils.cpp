@@ -1,4 +1,5 @@
 #include "CSLOLUtils.h"
+#include "CSLOLToolsImpl.h"
 
 #include <QDir>
 #include <QCoreApplication>
