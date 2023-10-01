@@ -259,6 +259,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
 
     // make sure the path is correct when starting the application bundle
     QDir::setCurrent(QFileInfo(path).dir().path());
+    doReportError("_NSGetExecutablePath", "whatever", path);
     OSStatus execStatus = AuthorizationExecuteWithPrivileges(authorizationRef, path, kAuthorizationFlagDefaults, args, &pipe);
     if (execStatus != errAuthorizationSuccess) {
         fprintf(stderr, "Failed to exec auth: %x\n", execStatus);
