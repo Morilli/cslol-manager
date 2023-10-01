@@ -294,7 +294,12 @@ void CSLOLToolsImpl::init() {
         lockfile_ = new QLockFile(prog_ + "/lockfile");
         auto result = lockfile_->tryLock();
         auto lockerror = QString::number((int)lockfile_->error());
-        doReportError("Acquire lock LOL", prog_.toStdString().c_str(), lockerror);
+        char path[PATH_MAX];
+        uint32_t path_max_size = PATH_MAX;
+        if (_NSGetExecutablePath(path, &path_max_size) != KERN_SUCCESS) {
+            return;
+        }
+        doReportError("Acquire lock LOL", prog_.toStdString().c_str(), path);
         if (!result) {
             setState(CSLOLState::StateCriticalError);
             return;
