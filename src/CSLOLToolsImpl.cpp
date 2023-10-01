@@ -14,7 +14,18 @@
 #include <QThread>
 #include <QVersionNumber>
 #include <fstream>
+#include "CSLOLUtils.h"
+#include "CSLOLTools.h"
 
+#include <QDir>
+#include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QFileInfo>
+#include <QSysInfo>
+#include <QUrl>
+#include <QUrlQuery>
+
+#include "CSLOLVersion.h"
 #include "CSLOLUtils.h"
 #include "CSLOLVersion.h"
 #ifdef _WIN32
