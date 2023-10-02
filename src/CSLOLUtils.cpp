@@ -135,7 +135,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 #    include <mach-o/dyld.h>
 #    include <Security/Authorization.h>
 #    include <Security/AuthorizationTags.h>
-#    include <Security/SecTranslocate.h>
+// #    include <Security/SecTranslocate.h>
 #    include <sys/sysctl.h>
 
 QString CSLOLUtils::detectGamePath() {
@@ -238,16 +238,22 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
         return;
     }
 
+    //function def for ‘SecTranslocateIsTranslocatedURL’
+    Boolean (*mySecTranslocateIsTranslocatedURL)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error);
+    void* handle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
+    mySecTranslocateIsTranslocatedURL = dlsym(handle, "SecTranslocateIsTranslocatedURL");
     CFURL* pathUrl = CFURLCreateWithString(NULL, CFStringCreateWithCStringNoCopy(NULL, path, kCFStringEncodingUTF8, kCFAllocatorNull), NULL);
     bool isTranslocated;
-    SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
+    mySecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
     if (isTranslocated) {
-        CFURL* originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
+        CFURLRef __nullable (*mySecTranslocateCreateOriginalPathForURL)(CFURLRef translocatedPath, CFErrorRef * __nullable error);
+        mySecTranslocateCreateOriginalPathForURL = dlsym(handle, "SecTranslocateCreateOriginalPathForURL");
+        CFURL* originalPathUrl = mySecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
         CFString* originalPathString = CFURLCopyPath(originalPathUrl);
 
         char originalPath[PATH_MAX];
         CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
-        system(std::string("xattr -cr ") + originalPath);
+        system(std::string("xattr -cr ") +  "\"" + originalPath + "\"");
 
         CFRelease(originalPathUrl);
         CFRelease(originalPathString);
