@@ -144,26 +144,37 @@ using t_SecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool *isTra
 using t_SecTranslocateCreateOriginalPathForURL = CFURLRef __nullable (*)(CFURLRef translocatedPath, CFErrorRef * __nullable error);
 
 static void fix_translocate(const char* path) {
+    std::string homedir = getenv("HOME");
+    FILE* logfile = fopen(homedir.append("/cslol-log.txt").c_str(), "wb");
+    fprintf(logfile, "fix_translocate was called for path \"%s\"\n", path);
     void* SecurityLibHandle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
+    fprintf(logfile, "security lib handle: %p\n", SecurityLibHandle);
     if (!SecurityLibHandle) {
         fprintf(stderr, "Failed to dlopen security lib.\n");
         return;
     }
 
     CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
+    fprintf(logfile, "pathString: %p\n", pathString);
     CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
+    fprintf(logfile, "pathUrl: %p\n", pathUrl);
 
     bool isTranslocated;
     t_SecTranslocateIsTranslocatedURL SecTranslocateIsTranslocatedURL = (t_SecTranslocateIsTranslocatedURL) dlsym(SecurityLibHandle, "SecTranslocateIsTranslocatedURL");
     bool success = SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
+    fprintf(logfile, "SecTranslocateIsTranslocatedURL success: %s, is translocated: %s\n", success ? "true" : "false", isTranslocated ? "true" : "false");
     if (success && isTranslocated) {
         t_SecTranslocateCreateOriginalPathForURL SecTranslocateCreateOriginalPathForURL = (t_SecTranslocateCreateOriginalPathForURL) dlsym(SecurityLibHandle, "SecTranslocateCreateOriginalPathForURL");
         CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
+        fprintf(logfile, "originalPathUrl: %p\n", originalPathUrl);
         if (originalPathUrl) {
             CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
+            fprintf(logfile, "originalPathString: %p\n", originalPathString);
 
             char originalPath[PATH_MAX];
             bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
+            fprintf(logfile, "CFStringGetCString success: %s\n", success ? "true" : "false");
+            fprintf(logfile, "originalPath: \"%s\"\n", originalPath);
             if (success)
                 removexattr(originalPath, "com.apple.quarantine", 0);
 
