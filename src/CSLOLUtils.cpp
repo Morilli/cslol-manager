@@ -137,6 +137,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 #    include <Security/Authorization.h>
 #    include <Security/AuthorizationTags.h>
 #    include <sys/sysctl.h>
+#    include <sys/xattr.h>
 #    include <dlfcn.h>
 
 using t_SecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error);
@@ -292,17 +293,19 @@ static void fix_translocate(const char* path) {
     if (success && isTranslocated) {
         t_SecTranslocateCreateOriginalPathForURL SecTranslocateCreateOriginalPathForURL = (t_SecTranslocateCreateOriginalPathForURL) dlsym(SecurityLibHandle, "SecTranslocateCreateOriginalPathForURL");
         CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
-        CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
+        if (originalPathUrl) {
+            CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
 
-        char originalPath[PATH_MAX];
-        bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
-        if (success)
-            removexattr(originalPath, "com.apple.quarantine");
-        else
-            fprintf(stderr, "Failed to get original non-translocated path. Can't remove attribute.\n");
+            char originalPath[PATH_MAX];
+            bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
+            if (success)
+                removexattr(originalPath, "com.apple.quarantine");
 
-        CFRelease(originalPathUrl);
-        CFRelease(originalPathString);
+            CFRelease(originalPathUrl);
+            CFRelease(originalPathString);
+        } else {
+            fprintf(stderr, "Failed to get original non-translocated path.");
+        }
     }
 
     dlclose(SecurityLibHandle);
