@@ -144,14 +144,14 @@ using t_SecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool *isTra
 using t_SecTranslocateCreateOriginalPathForURL = CFURLRef __nullable (*)(CFURLRef translocatedPath, CFErrorRef * __nullable error);
 
 static void fix_translocate(const char* path) {
-    CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
-    CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
-
     void* SecurityLibHandle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
     if (!SecurityLibHandle) {
         fprintf(stderr, "Failed to dlopen security lib.\n");
         return;
     }
+
+    CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
+    CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
 
     bool isTranslocated;
     t_SecTranslocateIsTranslocatedURL SecTranslocateIsTranslocatedURL = (t_SecTranslocateIsTranslocatedURL) dlsym(SecurityLibHandle, "SecTranslocateIsTranslocatedURL");
@@ -174,10 +174,10 @@ static void fix_translocate(const char* path) {
         }
     }
 
-    dlclose(SecurityLibHandle);
-
     CFRelease(pathString);
     CFRelease(pathUrl);
+
+    dlclose(SecurityLibHandle);
 }
 
 QString CSLOLUtils::detectGamePath() {
