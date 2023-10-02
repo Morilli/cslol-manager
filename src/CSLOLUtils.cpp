@@ -143,6 +143,43 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 using t_SecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error);
 using t_SecTranslocateCreateOriginalPathForURL = CFURLRef __nullable (*)(CFURLRef translocatedPath, CFErrorRef * __nullable error);
 
+static void fix_translocate(const char* path) {
+    CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
+    CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
+
+    void* SecurityLibHandle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
+    if (!SecurityLibHandle) {
+        fprintf(stderr, "Failed to dlopen security lib.\n");
+        return;
+    }
+
+    bool isTranslocated;
+    t_SecTranslocateIsTranslocatedURL SecTranslocateIsTranslocatedURL = (t_SecTranslocateIsTranslocatedURL) dlsym(SecurityLibHandle, "SecTranslocateIsTranslocatedURL");
+    bool success = SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
+    if (success && isTranslocated) {
+        t_SecTranslocateCreateOriginalPathForURL SecTranslocateCreateOriginalPathForURL = (t_SecTranslocateCreateOriginalPathForURL) dlsym(SecurityLibHandle, "SecTranslocateCreateOriginalPathForURL");
+        CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
+        if (originalPathUrl) {
+            CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
+
+            char originalPath[PATH_MAX];
+            bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
+            if (success)
+                removexattr(originalPath, "com.apple.quarantine", 0);
+
+            CFRelease(originalPathUrl);
+            CFRelease(originalPathString);
+        } else {
+            fprintf(stderr, "Failed to get original non-translocated path.");
+        }
+    }
+
+    dlclose(SecurityLibHandle);
+
+    CFRelease(pathString);
+    CFRelease(pathUrl);
+}
+
 QString CSLOLUtils::detectGamePath() {
     pid_t *pid_list;
 
@@ -276,44 +313,6 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
 
     exit(0);
 }
-
-static void fix_translocate(const char* path) {
-    CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
-    CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
-
-    void* SecurityLibHandle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
-    if (!SecurityLibHandle) {
-        fprintf(stderr, "Failed to dlopen security lib.\n");
-        return;
-    }
-
-    bool isTranslocated;
-    t_SecTranslocateIsTranslocatedURL SecTranslocateIsTranslocatedURL = (t_SecTranslocateIsTranslocatedURL) dlsym(SecurityLibHandle, "SecTranslocateIsTranslocatedURL");
-    bool success = SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
-    if (success && isTranslocated) {
-        t_SecTranslocateCreateOriginalPathForURL SecTranslocateCreateOriginalPathForURL = (t_SecTranslocateCreateOriginalPathForURL) dlsym(SecurityLibHandle, "SecTranslocateCreateOriginalPathForURL");
-        CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
-        if (originalPathUrl) {
-            CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
-
-            char originalPath[PATH_MAX];
-            bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
-            if (success)
-                removexattr(originalPath, "com.apple.quarantine");
-
-            CFRelease(originalPathUrl);
-            CFRelease(originalPathString);
-        } else {
-            fprintf(stderr, "Failed to get original non-translocated path.");
-        }
-    }
-
-    dlclose(SecurityLibHandle);
-
-    CFRelease(pathString);
-    CFRelease(pathUrl);
-}
-
 #else
 QString CSLOLUtils::detectGamePath() { return ""; }
 
