@@ -133,10 +133,12 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 #    include <string.h>
 #    include <unistd.h>
 #    include <mach-o/dyld.h>
+#    include <CoreFoundation/CoreFoundation.h>
 #    include <Security/Authorization.h>
 #    include <Security/AuthorizationTags.h>
 // #    include <Security/SecTranslocate.h>
 #    include <sys/sysctl.h>
+#    include <dlfcn.h>
 
 QString CSLOLUtils::detectGamePath() {
     pid_t *pid_list;
@@ -253,7 +255,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
 
         char originalPath[PATH_MAX];
         CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
-        system(std::string("xattr -cr ") +  "\"" + originalPath + "\"");
+        system((std::string("xattr -cr ") +  "\"" + originalPath + "\"").c_str());
 
         CFRelease(originalPathUrl);
         CFRelease(originalPathString);
