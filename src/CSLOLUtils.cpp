@@ -136,9 +136,11 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 #    include <CoreFoundation/CoreFoundation.h>
 #    include <Security/Authorization.h>
 #    include <Security/AuthorizationTags.h>
-// #    include <Security/SecTranslocate.h>
 #    include <sys/sysctl.h>
 #    include <dlfcn.h>
+
+using t_SecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error);
+using t_SecTranslocateCreateOriginalPathForURL = CFURLRef __nullable (*)(CFURLRef translocatedPath, CFErrorRef * __nullable error);
 
 QString CSLOLUtils::detectGamePath() {
     pid_t *pid_list;
@@ -240,27 +242,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
         return;
     }
 
-    //function def for ‘SecTranslocateIsTranslocatedURL’
-    void* handle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
-    Boolean (*SecTranslocateIsTranslocatedURL)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error) =
-        (decltype(SecTranslocateIsTranslocatedURL)) dlsym(handle, "SecTranslocateIsTranslocatedURL");
-    CFURLRef pathUrl = CFURLCreateWithString(NULL, CFStringCreateWithCStringNoCopy(NULL, path, kCFStringEncodingUTF8, kCFAllocatorNull), NULL);
-    bool isTranslocated;
-    SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
-    if (isTranslocated) {
-        CFURLRef __nullable (*SecTranslocateCreateOriginalPathForURL)(CFURLRef translocatedPath, CFErrorRef * __nullable error) =
-            (decltype(SecTranslocateCreateOriginalPathForURL)) dlsym(handle, "SecTranslocateCreateOriginalPathForURL");
-        CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
-        CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
-
-        char originalPath[PATH_MAX];
-        CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
-        system((std::string("xattr -cr ") +  "\"" + originalPath + "\"").c_str());
-
-        CFRelease(originalPathUrl);
-        CFRelease(originalPathString);
-    }
-    CFRelease(pathUrl);
+    fix_translocate(path);
 
     AuthorizationRef authorizationRef;
     OSStatus createStatus = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment, kAuthorizationFlagDefaults, &authorizationRef);
@@ -293,6 +275,42 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
 
     exit(0);
 }
+
+static void fix_translocate(const char* path) {
+    CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
+    CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
+
+    void* SecurityLibHandle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
+    if (!SecurityLibHandle) {
+        fprintf(stderr, "Failed to dlopen security lib.\n");
+        return;
+    }
+
+    bool isTranslocated;
+    t_SecTranslocateIsTranslocatedURL SecTranslocateIsTranslocatedURL = (t_SecTranslocateIsTranslocatedURL) dlsym(SecurityLibHandle, "SecTranslocateIsTranslocatedURL");
+    bool success = SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
+    if (success && isTranslocated) {
+        t_SecTranslocateCreateOriginalPathForURL SecTranslocateCreateOriginalPathForURL = (t_SecTranslocateCreateOriginalPathForURL) dlsym(SecurityLibHandle, "SecTranslocateCreateOriginalPathForURL");
+        CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
+        CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
+
+        char originalPath[PATH_MAX];
+        bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
+        if (success)
+            removexattr(originalPath, "com.apple.quarantine");
+        else
+            fprintf(stderr, "Failed to get original non-translocated path. Can't remove attribute.\n");
+
+        CFRelease(originalPathUrl);
+        CFRelease(originalPathString);
+    }
+
+    dlclose(SecurityLibHandle);
+
+    CFRelease(pathString);
+    CFRelease(pathUrl);
+}
+
 #else
 QString CSLOLUtils::detectGamePath() { return ""; }
 
