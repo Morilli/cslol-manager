@@ -243,7 +243,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
     //function def for ‘SecTranslocateIsTranslocatedURL’
     void* handle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
     Boolean (*SecTranslocateIsTranslocatedURL)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error) =
-        (decltype(SecTrasnlocateisTranslocatedURL)) dlsym(handle, "SecTranslocateIsTranslocatedURL");
+        (decltype(SecTranslocateIsTranslocatedURL)) dlsym(handle, "SecTranslocateIsTranslocatedURL");
     CFURLRef pathUrl = CFURLCreateWithString(NULL, CFStringCreateWithCStringNoCopy(NULL, path, kCFStringEncodingUTF8, kCFAllocatorNull), NULL);
     bool isTranslocated;
     SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
