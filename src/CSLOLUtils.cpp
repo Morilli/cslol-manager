@@ -135,6 +135,7 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 #    include <mach-o/dyld.h>
 #    include <Security/Authorization.h>
 #    include <Security/AuthorizationTags.h>
+#    include <Security/SecTranslocate.h>
 #    include <sys/sysctl.h>
 
 QString CSLOLUtils::detectGamePath() {
@@ -237,6 +238,22 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
         return;
     }
 
+    CFURL* pathUrl = CFURLCreateWithString(NULL, CFStringCreateWithCStringNoCopy(NULL, path, kCFStringEncodingUTF8, kCFAllocatorNull), NULL);
+    bool isTranslocated;
+    SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
+    if (isTranslocated) {
+        CFURL* originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
+        CFString* originalPathString = CFURLCopyPath(originalPathUrl);
+
+        char originalPath[PATH_MAX];
+        CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
+        system(std::string("xattr -cr ") + originalPath);
+
+        CFRelease(originalPathUrl);
+        CFRelease(originalPathString);
+    }
+    CFRelease(pathUrl);
+
     AuthorizationRef authorizationRef;
     OSStatus createStatus = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment, kAuthorizationFlagDefaults, &authorizationRef);
     if (createStatus != errAuthorizationSuccess) {
@@ -258,8 +275,6 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
     char* args[] = { strdup("admin"), NULL };
     FILE* pipe = NULL;
 
-    // make sure the path is correct when starting the application bundle
-    QDir::setCurrent(QFileInfo(path).dir().path());
     OSStatus execStatus = AuthorizationExecuteWithPrivileges(authorizationRef, path, kAuthorizationFlagDefaults, args, &pipe);
     if (execStatus != errAuthorizationSuccess) {
         fprintf(stderr, "Failed to exec auth: %x\n", execStatus);
