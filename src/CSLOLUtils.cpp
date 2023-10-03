@@ -178,7 +178,7 @@ static void fix_translocate() {
             fprintf(logfile, "originalPath: \"%s\"\n", originalPath);
             if (success) {
                 int ret = removexattr(originalPath, "com.apple.quarantine", 0);
-                fprintf(logfile, "removexattr return value: %d, errno: %d\n", ret, errno());
+                fprintf(logfile, "removexattr return value: %d, errno: %d\n", ret, errno);
             }
 
             CFRelease(originalPathUrl);
@@ -188,7 +188,7 @@ static void fix_translocate() {
         }
     }
 
-    CFRelease(bundleURL);
+    CFRelease(bundleUrl);
 
     dlclose(SecurityLibHandle);
 }
