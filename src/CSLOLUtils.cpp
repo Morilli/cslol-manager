@@ -167,7 +167,7 @@ static void fix_translocate() {
             char originalPath[PATH_MAX];
             bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
             if (success)
-                int ret = removexattr(originalPath, "com.apple.quarantine", 0);
+                removexattr(originalPath, "com.apple.quarantine", 0);
 
             CFRelease(originalPathUrl);
             CFRelease(originalPathString);
