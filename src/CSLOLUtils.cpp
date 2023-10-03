@@ -143,10 +143,9 @@ void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {}
 using t_SecTranslocateIsTranslocatedURL = Boolean (*)(CFURLRef path, bool *isTranslocated, CFErrorRef* __nullable error);
 using t_SecTranslocateCreateOriginalPathForURL = CFURLRef __nullable (*)(CFURLRef translocatedPath, CFErrorRef * __nullable error);
 
-static void fix_translocate(const char* path) {
+static void fix_translocate() {
     std::string homedir = getenv("HOME");
     FILE* logfile = fopen(homedir.append("/cslol-log.txt").c_str(), "wb");
-    fprintf(logfile, "fix_translocate was called for path \"%s\"\n", path);
     void* SecurityLibHandle = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY);
     fprintf(logfile, "security lib handle: %p\n", SecurityLibHandle);
     if (!SecurityLibHandle) {
@@ -154,18 +153,20 @@ static void fix_translocate(const char* path) {
         return;
     }
 
-    CFStringRef pathString = CFStringCreateWithCStringNoCopy(kCFAllocatorDefault, path, kCFStringEncodingUTF8, kCFAllocatorNull);
-    fprintf(logfile, "pathString: %p\n", pathString);
-    CFURLRef pathUrl = CFURLCreateWithString(kCFAllocatorDefault, pathString, NULL);
-    fprintf(logfile, "pathUrl: %p\n", pathUrl);
+    CFBundleRef mainBundle = CFBundleGetMainBundle();
+    if (!mainBundle) { // should not happen I believe?
+        dlclose(SecurityLibHandle);
+        return;
+    }
+    CFURLRef bundleUrl = CFBundleCopyBundleURL(mainBundle);
 
     bool isTranslocated;
     t_SecTranslocateIsTranslocatedURL SecTranslocateIsTranslocatedURL = (t_SecTranslocateIsTranslocatedURL) dlsym(SecurityLibHandle, "SecTranslocateIsTranslocatedURL");
-    bool success = SecTranslocateIsTranslocatedURL(pathUrl, &isTranslocated, NULL);
+    bool success = SecTranslocateIsTranslocatedURL(bundleUrl, &isTranslocated, NULL);
     fprintf(logfile, "SecTranslocateIsTranslocatedURL success: %s, is translocated: %s\n", success ? "true" : "false", isTranslocated ? "true" : "false");
     if (success && isTranslocated) {
         t_SecTranslocateCreateOriginalPathForURL SecTranslocateCreateOriginalPathForURL = (t_SecTranslocateCreateOriginalPathForURL) dlsym(SecurityLibHandle, "SecTranslocateCreateOriginalPathForURL");
-        CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(pathUrl, NULL);
+        CFURLRef originalPathUrl = SecTranslocateCreateOriginalPathForURL(bundleUrl, NULL);
         fprintf(logfile, "originalPathUrl: %p\n", originalPathUrl);
         if (originalPathUrl) {
             CFStringRef originalPathString = CFURLCopyPath(originalPathUrl);
@@ -175,8 +176,10 @@ static void fix_translocate(const char* path) {
             bool success = CFStringGetCString(originalPathString, originalPath, PATH_MAX, kCFStringEncodingUTF8);
             fprintf(logfile, "CFStringGetCString success: %s\n", success ? "true" : "false");
             fprintf(logfile, "originalPath: \"%s\"\n", originalPath);
-            if (success)
-                removexattr(originalPath, "com.apple.quarantine", 0);
+            if (success) {
+                int ret = removexattr(originalPath, "com.apple.quarantine", 0);
+                fprintf(logfile, "removexattr return value: %d, errno: %d\n", ret, errno());
+            }
 
             CFRelease(originalPathUrl);
             CFRelease(originalPathString);
@@ -185,8 +188,7 @@ static void fix_translocate(const char* path) {
         }
     }
 
-    CFRelease(pathString);
-    CFRelease(pathUrl);
+    CFRelease(bundleURL);
 
     dlclose(SecurityLibHandle);
 }
@@ -280,18 +282,18 @@ QString CSLOLUtils::isPlatformUnsuported() {
 void CSLOLUtils::relaunchAdmin(int argc, char *argv[]) {
     QCoreApplication::setSetuidAllowed(true);
 
-    char path[PATH_MAX];
-    uint32_t path_max_size = PATH_MAX;
-    if (_NSGetExecutablePath(path, &path_max_size) != KERN_SUCCESS) {
-        return;
-    }
-
     if (argc > 1 && strcmp(argv[1], "admin") == 0) {
         puts("Authed!");
         return;
     }
 
-    fix_translocate(path);
+    fix_translocate();
+
+    char path[PATH_MAX];
+    uint32_t path_max_size = PATH_MAX;
+    if (_NSGetExecutablePath(path, &path_max_size) != KERN_SUCCESS) {
+        return;
+    }
 
     AuthorizationRef authorizationRef;
     OSStatus createStatus = AuthorizationCreate(NULL, kAuthorizationEmptyEnvironment, kAuthorizationFlagDefaults, &authorizationRef);
