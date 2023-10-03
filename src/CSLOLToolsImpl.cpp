@@ -14,26 +14,7 @@
 #include <QThread>
 #include <QVersionNumber>
 #include <fstream>
-#include "CSLOLUtils.h"
-#include "CSLOLTools.h"
 
-#include <QDir>
-#include <QCoreApplication>
-#include <QCryptographicHash>
-#include <QFileInfo>
-#include <QSysInfo>
-#include <QUrl>
-#include <QUrlQuery>
-#    include <libproc.h>
-#    include <stdlib.h>
-#    include <string.h>
-#    include <unistd.h>
-#    include <mach-o/dyld.h>
-#    include <Security/Authorization.h>
-#    include <Security/AuthorizationTags.h>
-#    include <sys/sysctl.h>
-
-#include "CSLOLVersion.h"
 #include "CSLOLUtils.h"
 #include "CSLOLVersion.h"
 #ifdef _WIN32
@@ -311,15 +292,9 @@ void CSLOLToolsImpl::init() {
         patcherProcess_ = nullptr;
         setStatus("Acquire lock");
         lockfile_ = new QLockFile(prog_ + "/lockfile");
-        auto result = lockfile_->tryLock();
-        auto lockerror = QString::number((int)lockfile_->error());
-        char path[PATH_MAX];
-        uint32_t path_max_size = PATH_MAX;
-        if (_NSGetExecutablePath(path, &path_max_size) != KERN_SUCCESS) {
-            return;
-        }
-        doReportError("Acquire lock LOL", std::string("prog_: ").append(prog_.toStdString().c_str()).c_str(), std::string("nsgetexecutablepath: ").append(path).c_str());
-        if (!result) {
+        if (!lockfile_->tryLock()) {
+            auto lockerror = QString::number((int)lockfile_->error());
+            doReportError("Acquire lock", "Can not run multiple instances", lockerror);
             setState(CSLOLState::StateCriticalError);
             return;
         }
