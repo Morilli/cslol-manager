@@ -1,7 +1,5 @@
 #include "CSLOLUtils.h"
-#include "CSLOLTools.h"
 
-#include <QDir>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QFileInfo>
